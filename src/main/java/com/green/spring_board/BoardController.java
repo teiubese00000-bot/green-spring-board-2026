@@ -1,19 +1,21 @@
 package com.green.spring_board;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/api/board")
+@AllArgsConstructor
 public class BoardController {
-
     private BoardRepository boardRepository;
 
-    public BoardController(BoardRepository boardRepository) {
-        this.boardRepository = boardRepository;
-    }
 
 // 전체조회
     @GetMapping
@@ -32,10 +34,13 @@ public class BoardController {
 // 상세조회
     @GetMapping("/{id}")
     public Boards getBoardDetail(@PathVariable int id){
-        return boardRepository.findById(id).get();
+        Boards board= boardRepository.findById(id).get();
+        board.setHits(board.getHits()+1);
+        boardRepository.save(board);
+
+        return board;
+
     }
-
-
 
 
 
