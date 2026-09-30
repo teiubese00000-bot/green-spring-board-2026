@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 import javax.swing.border.Border;
 
-@Entity
+@Entity // JPA가 관리할 클래스로 지정
 @Table(name="boards")
 public class Boards {
     @Id
