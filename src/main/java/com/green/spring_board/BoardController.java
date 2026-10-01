@@ -5,9 +5,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 
 
 @RestController
@@ -19,8 +22,10 @@ public class BoardController {
 
 // 전체조회
     @GetMapping
-    public List<Boards> getBoards() {
-        return boardRepository.findAll();
+    public ResponseEntity<List<Boards>> getBoards() {
+        return ResponseEntity.ok(boardRepository.findAll()  //
+        );
+     //   return boardRepository.findAll(); -데이터만
     }
 
     /*
@@ -33,56 +38,84 @@ public class BoardController {
 
 // 상세조회
     @GetMapping("/{id}")
-    public Boards getBoardDetail(@PathVariable int id){
-        Boards board= boardRepository.findById(id).get();
+    public ResponseEntity <Boards> getBoardDetail(@PathVariable int id){
+        Optional<Boards> optionalboard= boardRepository.findById(id);
+        if (optionalboard.isEmpty()){
+            //요청한 게시글 번호를 찾지 못한경우
+            return ResponseEntity.notFound().build();
+        }
+        Boards board = optionalboard.get();
         board.setHits(board.getHits()+1);
         boardRepository.save(board);
 
-        return board;
+        return ResponseEntity.ok(board);
 
     }
 
 
-
-// 외부값 읽기와 저장
+// 삽입 ///////////////
+// 외부값 읽기
     @PostMapping
-    public void createBoard(@RequestBody BoardCreateRequest boardCreateRequest) {
+    public ResponseEntity<Boards> createBoard(@RequestBody BoardCreateRequest boardCreateRequest) {
+        if (boardCreateRequest.getTitle() == null || boardCreateRequest.getTitle().isBlank()){
+            return ResponseEntity.badRequest().build();
+
+        }
+        if (boardCreateRequest.getContent() == null || boardCreateRequest.getContent().isBlank()){
+            return ResponseEntity.badRequest().build();
+        }
+
         System.out.println(boardCreateRequest.getTitle());
         System.out.println(boardCreateRequest.getContent());
 
 //저장
-        Boards board =new Boards();
+        Boards board = new Boards();
         board.setTitle(boardCreateRequest.getTitle());
         board.setContent(boardCreateRequest.getContent());
 
-        boardRepository.save(board);
-
+        Boards savedBoard = boardRepository.save(board); //Db에 저장되는 번호를 알아냄
+        int newBoardId = savedBoard.getId();
+        URI location = URI.create("/api/board/"+newBoardId);
+        return ResponseEntity.created(location).body(board);
     }
-
+/*
+    public ResponseEntity <Boards> getBoardDetail(@PathVariable int id){
+        Optional<Boards> optionalboard= boardRepository.findById(id);
+          */
 
 // 수정
 @PatchMapping("/{id}")
-public void updateBoard(
+public ResponseEntity<Void> updateBoard(
         @PathVariable int id,
         @RequestBody BoardCreateRequest boardCreateRequest) {
-//
-    Boards board = boardRepository.findById(id).get();
 
-    if (boardCreateRequest.getTitle() != null) {
-        board.setTitle(boardCreateRequest.getTitle());
+    Optional<Boards> optionalboard = boardRepository.findById(id);
+
+    if (boardCreateRequest.getTitle() != null && ! boardCreateRequest.getTitle().isBlank()) {
+      return ResponseEntity.badRequest().build();
     }
 
-    if (boardCreateRequest.getContent() != null) {
-        board.setContent(boardCreateRequest.getContent());
+    if (boardCreateRequest.getContent() != null && ! boardCreateRequest.getContent().isBlank()) {
+        return ResponseEntity.badRequest().build();
     }
+
+    Boards board = optionalboard.get();
     boardRepository.save(board);
+    return ResponseEntity.ok().build();
 }
 
 
 // 삭제
 @DeleteMapping("/{id}")
-    public void deleteBoard(@PathVariable int id){
-      boardRepository.deleteById(id);
-}
+    public ResponseEntity<Void> deleteBoard(@PathVariable int id){
+    boolean isExist = boardRepository.existsById(id);
+    if (!isExist) {
+
+        return ResponseEntity.notFound().build();
+
+    }
+        boardRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
 
 }
