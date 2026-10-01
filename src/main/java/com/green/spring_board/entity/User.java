@@ -5,27 +5,25 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.stereotype.Service;
 
-@Getter
-@Setter
+@Entity
+@Table(name="users")
 @AllArgsConstructor
 @NoArgsConstructor
-
-
-@Entity // JPA가 관리할 클래스로 지정
-@Table(name="boards")
-public class Boards {
+@Getter
+@Setter
+public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private  int id;
-
-    @Column(nullable=false)
-    private String title;
-
-    @Column(nullable=false)
-    private String content;
+    private int id;
 
     @Column(nullable = false)
-    private  int hits;
+    private  String  nickname;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false)
+    private String password;
 }
