@@ -10,7 +10,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MyInfoResponse {
-    private int id;
+    //private int id;
     private String email;
     private String nickname;
 

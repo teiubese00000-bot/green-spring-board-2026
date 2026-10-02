@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name="users")
 @AllArgsConstructor
@@ -26,4 +28,10 @@ public class User {
 
     @Column(nullable = false)
     private String password;
+
+    @Column(nullable = false, insertable = false, updatable = false)
+    private LocalDateTime createdDateTime;
+
+    @Column(nullable = false, insertable = false, updatable = false)
+    private LocalDateTime updateDateTime;
 }

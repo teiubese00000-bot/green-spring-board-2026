@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -15,7 +17,7 @@ import lombok.Setter;
 @Entity // JPA가 관리할 클래스로 지정
 @Table(name="boards")
 public class Board {
-    @Id
+    @Id  //GeneratedValue 자동
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private  int id;
 
@@ -28,4 +30,9 @@ public class Board {
     @Column(nullable = false)
     private  int hits;
 
+    @Column(nullable = false, insertable = false, updatable = false)
+    private LocalDateTime createdDateTime;
+
+    @Column(nullable = false, insertable = false, updatable = false)
+    private LocalDateTime updateDateTime;
 }
