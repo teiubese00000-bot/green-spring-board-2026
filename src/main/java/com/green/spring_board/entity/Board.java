@@ -8,31 +8,33 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "boards")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-
-
-@Entity // JPA가 관리할 클래스로 지정
-@Table(name="boards")
 public class Board {
-    @Id  //GeneratedValue 자동
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private  int id;
+    private int id;
 
-    @Column(nullable=false)
+    @Column(nullable = false)
     private String title;
 
-    @Column(nullable=false)
+    @Column(nullable = false)
     private String content;
 
     @Column(nullable = false)
-    private  int hits;
+    private int hits;
 
     @Column(nullable = false, insertable = false, updatable = false)
-    private LocalDateTime createdDateTime;
+    private LocalDateTime createdDatetime;
 
     @Column(nullable = false, insertable = false, updatable = false)
-    private LocalDateTime updateDateTime;
+    private LocalDateTime updatedDatetime;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 }

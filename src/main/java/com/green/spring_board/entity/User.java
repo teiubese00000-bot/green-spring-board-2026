@@ -5,12 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name="users")
+@Table(name = "users")
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -21,7 +20,7 @@ public class User {
     private int id;
 
     @Column(nullable = false)
-    private  String  nickname;
+    private String nickname;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -30,8 +29,8 @@ public class User {
     private String password;
 
     @Column(nullable = false, insertable = false, updatable = false)
-    private LocalDateTime createdDateTime;
+    private LocalDateTime createdDatetime;
 
     @Column(nullable = false, insertable = false, updatable = false)
-    private LocalDateTime updateDateTime;
+    private LocalDateTime updatedDatetime;
 }

@@ -1,16 +1,18 @@
 package com.green.spring_board.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.stereotype.Service;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class  LoginRequest {
+public class LoginRequest {
+    @NotBlank   // null 또는 빈문자열 방지(공백으로 이뤄진 데이테도 빈값으로 간주)
     private String email;
+    @NotBlank
     private String password;
 }
