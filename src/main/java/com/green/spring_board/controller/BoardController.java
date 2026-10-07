@@ -124,4 +124,21 @@ public class BoardController {
         boardService.deleteBoard(id,userId);
         return ResponseEntity.ok(ApiResponse.ok());
     }
+
+    ///////좋아요
+    @PostMapping("/like/{id}")
+    public ResponseEntity<ApiResponse<Void>> likeBoard(
+        @PathVariable int id,
+        HttpServletRequest httpServletRequest)
+    {
+        HttpSession session = httpServletRequest.getSession(false);
+        if (session == null || session.getAttribute("userId") == null) {
+            throw new UnauthenticatedException("로그인 필요");
+        }
+        int userId = (Integer) session.getAttribute("userId");
+
+        boardService.pressLike(id,userId);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
 }
