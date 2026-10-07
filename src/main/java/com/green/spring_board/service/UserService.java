@@ -3,14 +3,14 @@ package com.green.spring_board.service;
 import com.green.spring_board.dto.LoginRequest;
 import com.green.spring_board.dto.MyInfoResponse;
 import com.green.spring_board.dto.SignupRequest;
+import com.green.spring_board.dto.UserUpdateRequest;
 import com.green.spring_board.entity.User;
+import com.green.spring_board.exceptions.AuthorizationFailureException;
 import com.green.spring_board.exceptions.ResourceConflictException;
 import com.green.spring_board.exceptions.ResourceNotFoundException;
 import com.green.spring_board.exceptions.UnauthenticatedException;
-import com.green.spring_board.exceptions.UserRequestException;
 import com.green.spring_board.repository.UserRepository;
 import lombok.AllArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,12 +25,6 @@ public class UserService {
             = new BCryptPasswordEncoder();
 
     public void signup(SignupRequest signupRequest) {
-        // 이메일과 비밀번호가 공백이 아닌지 확인
-        if(signupRequest.getEmail().isBlank()
-                || signupRequest.getPassword().isBlank()){
-            throw new UserRequestException("Email or password cannot be blank");
-        }
-
         // 이메일이 사용 중인지 확인
         if( userRepository.existsByEmail(signupRequest.getEmail()) ){
             throw new ResourceConflictException("Email already exists");
@@ -87,24 +81,28 @@ public class UserService {
         return myInfoResponse;
     }
 
-    public void updateUserInfo(int userId, MyInfoResponse myInfoResponse) {
+    public void updateUserInfo(int userId, UserUpdateRequest userUpdateRequest) {
         Optional<User> userOptional = userRepository.findById(userId);
         if(userOptional.isEmpty()){
             throw new ResourceNotFoundException("User not found");
         }
         User user = userOptional.get();
 
-        if(myInfoResponse.getEmail()!=null
-                && !myInfoResponse.getEmail().isBlank()
-                && !myInfoResponse.getEmail().equals(user.getEmail())
-        ){
-            user.setEmail(myInfoResponse.getEmail());
+        if(user.getId() != userId){
+            throw new AuthorizationFailureException("본인의 정보만 수정할 수 있습니다.");
         }
 
-        if(myInfoResponse.getNickname()!=null
-                && !myInfoResponse.getNickname().isBlank()
+        if(userUpdateRequest.getEmail()!=null
+                && !userUpdateRequest.getEmail().isBlank()
+                && !userUpdateRequest.getEmail().equals(user.getEmail())
+        ){
+            user.setEmail(userUpdateRequest.getEmail());
+        }
+
+        if(userUpdateRequest.getNickname()!=null
+                && !userUpdateRequest.getNickname().isBlank()
         ) {
-            user.setNickname(myInfoResponse.getNickname());
+            user.setNickname(userUpdateRequest.getNickname());
         }
         userRepository.save(user);
     }
@@ -115,6 +113,11 @@ public class UserService {
             throw new ResourceNotFoundException("User not found");
         }
         User user = userOptional.get();
+
+        if(user.getId() != userId){
+            throw new AuthorizationFailureException("본인만 탈퇴할 수 있습니다.");
+        }
+
         userRepository.delete(user);
     }
 }

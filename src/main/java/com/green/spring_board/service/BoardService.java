@@ -4,6 +4,7 @@ import com.green.spring_board.dto.BoardCreateRequest;
 import com.green.spring_board.dto.BoardResponse;
 import com.green.spring_board.dto.BoardUpdateRequest;
 import com.green.spring_board.entity.User;
+import com.green.spring_board.exceptions.AuthorizationFailureException;
 import com.green.spring_board.exceptions.ResourceNotFoundException;
 import com.green.spring_board.exceptions.UnauthenticatedException;
 
@@ -12,6 +13,7 @@ import com.green.spring_board.entity.Board;
 import com.green.spring_board.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.annotation.Id;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -99,6 +101,7 @@ public class BoardService {
     }
 
     public void updateBoard(int id, @Valid BoardUpdateRequest boardCreateRequest) {
+
         Optional<Board> optionalBoards = boardRepository.findById(id);
         if(optionalBoards.isEmpty()) {
             // 게시글을 못 찾은 경우
@@ -117,11 +120,18 @@ public class BoardService {
         boardRepository.save(board);
     }
 
-    public void deleteBoard(int id) {
-        boolean isExist = boardRepository.existsById(id);
-        if(!isExist) {
+    public void deleteBoard(int id, int userId) {
+        Optional<Board> optionalBoard= boardRepository.findById(id);
+
+        if(optionalBoard.isEmpty()) {
             throw new ResourceNotFoundException("게시글을 찾을 수 없습니다.");
         }
+        Board board =optionalBoard.get();
+        if (board.getUser().getId() !=userId) {
+            throw new AuthorizationFailureException("작업권한이 없음");
+
+        }
+
         boardRepository.deleteById(id);
     }
 }
