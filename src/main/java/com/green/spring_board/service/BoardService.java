@@ -134,4 +134,8 @@ public class BoardService {
 
         boardRepository.deleteById(id);
     }
+
+    public List<Board> getMyBoards(int userId){
+        return boardRepository.findAllByUser_Id(userId);
+    }
 }
