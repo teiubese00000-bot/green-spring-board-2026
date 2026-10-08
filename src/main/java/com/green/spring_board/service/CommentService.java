@@ -55,7 +55,10 @@ public class CommentService {
           throw new ResourceNotFoundException("board not found");
 
       }
-        List<Comment> comments = commentRepository.findByBoardId(boardId);
+        List<Comment> comments = commentRepository.findByBoardIdAndIsDeletedFalse(boardId);
+
+       
+
 
         List<CommentResponse> commentResponses = new ArrayList<>();
 
@@ -105,7 +108,11 @@ public class CommentService {
             throw new AuthorizationFailureException("권한이 없습니다");
 
         }
-        commentRepository.deleteById(id);
+        // 논리삭제
+        comment.setDeleted(true);
+        commentRepository.save(comment);
+
+        // 물리삭제 commentRepository.deleteById(id);
 
 
     }

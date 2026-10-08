@@ -38,5 +38,6 @@ public class Comment {
     @Column(nullable = false, name="created_datetime",insertable = false, updatable = false)
     private LocalDateTime createdDatetime;
 
-
+    @Column(nullable = false)
+    private boolean isDeleted;
 }

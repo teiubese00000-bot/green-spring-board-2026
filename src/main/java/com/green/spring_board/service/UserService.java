@@ -9,6 +9,7 @@ import com.green.spring_board.exceptions.AuthorizationFailureException;
 import com.green.spring_board.exceptions.ResourceConflictException;
 import com.green.spring_board.exceptions.ResourceNotFoundException;
 import com.green.spring_board.exceptions.UnauthenticatedException;
+import com.green.spring_board.global.UserState;
 import com.green.spring_board.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -40,6 +41,8 @@ public class UserService {
         user.setEmail(signupRequest.getEmail());
         user.setPassword(hashedPassword);
         user.setNickname(signupRequest.getNickname());
+        /////
+        user.setState(UserState.ACTIVE);
         userRepository.save(user);
     }
 
@@ -51,8 +54,14 @@ public class UserService {
         if(userOptional.isEmpty()){
             throw new ResourceNotFoundException("User not found");
         }
-
+    //유저를 가져옴
         User user = userOptional.get();
+
+        if (user.getState()==UserState.QUITTED){
+            throw new ResourceNotFoundException("탈퇴한 회원임");
+
+        }
+
         // 2. 비밀번호가 올바른지 확인
         if(!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())){
             throw new UnauthenticatedException("Wrong password");
@@ -68,6 +77,13 @@ public class UserService {
             throw new ResourceNotFoundException("User not found");
         }
         User user = userOptional.get();
+///////
+        if (user.getState()==UserState.QUITTED){
+            throw new ResourceNotFoundException("탈퇴한 회원임");
+
+        }
+
+
 
         // 4. DB에서 이 유저의 닉네임과 이메일을 받아옴
         String email = user.getEmail();
@@ -86,7 +102,13 @@ public class UserService {
         if(userOptional.isEmpty()){
             throw new ResourceNotFoundException("User not found");
         }
+        ////////////
         User user = userOptional.get();
+        if (user.getState()==UserState.QUITTED){
+            throw new ResourceNotFoundException("탈퇴한 회원임");
+
+        }
+
 
         if(userUpdateRequest.getEmail()!=null
                 && !userUpdateRequest.getEmail().isBlank()
@@ -108,7 +130,19 @@ public class UserService {
         if(userOptional.isEmpty()){
             throw new ResourceNotFoundException("User not found");
         }
+
         User user = userOptional.get();
-        userRepository.delete(user);
+        ///////////////
+        if (user.getState()==UserState.QUITTED){
+            throw new ResourceNotFoundException("탈퇴한 회원임");
+
+        }
+
+
+        // 유저 상태변경
+        user.setState(UserState.QUITTED);
+        userRepository.save(user);
+
+      //  userRepository.delete(user);
     }
 }

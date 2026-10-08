@@ -51,6 +51,8 @@ public class BoardService {
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Board> boards = boardRepository.findAll(pageable);
 
+
+
         return boards.map(board -> new BoardResponse(
                 board.getId(),
                 board.getTitle(),
@@ -171,7 +173,10 @@ public class BoardService {
             throw new AuthorizationFailureException("게시글 작업 권한이 없습니다.");
         }
 
-        boardRepository.deleteById(id);
+        // 논리삭제
+        board.setDeleted(true);
+        boardRepository.save(board);
+       //물리삭제 boardRepository.deleteById(id);
     }
 
     public void pressLike(int id, int userId) {

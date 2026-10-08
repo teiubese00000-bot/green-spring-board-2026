@@ -1,5 +1,6 @@
 package com.green.spring_board.entity;
 
+import com.green.spring_board.global.UserState;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -33,4 +34,8 @@ public class User {
 
     @Column(name ="update_date_time", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedDatetime;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)  /// 값을 가져와서 스트링아닌 이넘으로 변경해서 넘겨준
+    private UserState state;
 }
