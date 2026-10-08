@@ -28,7 +28,8 @@ public class BoardController {
     public ResponseEntity<ApiResponse<Page<BoardResponse>>> getBoards(
             HttpServletRequest httpServletRequest,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "latest") String order
 
     ){
         HttpSession session = httpServletRequest.getSession(false);
@@ -39,7 +40,7 @@ public class BoardController {
         }
 
         return ResponseEntity.ok(
-                ApiResponse.ok(boardService.getBoards(userId, page, size))
+                ApiResponse.ok(boardService.getAllBoards(userId, page, size, order))
         );
     }
 

@@ -1,8 +1,10 @@
 package com.green.spring_board.service;
 
 import com.green.spring_board.dto.BoardResponse;
+import com.green.spring_board.exceptions.InvalidStateException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import com.green.spring_board.dto.BoardUpdateRequest;
@@ -31,13 +33,25 @@ public class BoardService {
     private UserRepository userRepository;
     private LikeRepository likeRepository;
 
-    // 페이지 번호는 0부터 시작하며, ID가 큰 최신 게시글부터 조회합니다.
+    // 전체 조회: 페이지 조건과 정렬 조건으로 조회합니다.
     @Transactional(readOnly = true)
-    public Page<BoardResponse> getBoards(int userId, int page, int size) {
-        Page<Board> boards = boardRepository.findAll(
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"))
-        );
-        Page<BoardResponse> responses = boards.map(board -> new BoardResponse(
+    public Page<BoardResponse> getAllBoards(int userId, int page, int size, String order)
+    {
+        Sort sort;  // 정렬하기
+        if (order.equals("latest")) {
+           sort = Sort.by(Sort.Direction.DESC,"createdDatetime"); // 날짜순 정렬
+        }else if (order.equals("likes")){
+            sort = Sort.by(Sort.Direction.DESC,"likeCount"); // 좋아요순
+        } else if (order.equals("views")) {
+            sort = Sort.by(Sort.Direction.DESC,"hits"); // 히츠가 많은순
+        } else {
+            throw new InvalidStateException("잘못된 정렬 옵션");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Board> boards = boardRepository.findAll(pageable);
+
+        return boards.map(board -> new BoardResponse(
                 board.getId(),
                 board.getTitle(),
                 board.getContent(),
@@ -49,39 +63,7 @@ public class BoardService {
                 board.getCreatedDatetime(),
                 board.getUpdatedDatetime()
         ));
-        return responses;
     }
-    // 전체 조회
-    public List<BoardResponse> getAllBoards(int userId) {
-        // List<Board> -> List<BoardResponse> 형태로 변환 후 반환
-        List<Board> boards = boardRepository.findAll();
-
-        // 1. List<BoardResponse> 형태의 빈 리스트 생성
-        List<BoardResponse> boardResponses = new ArrayList<>();
-
-        // 2. Board 개수만큼 반복하며 new BoardResponse 생성
-        for (Board board : boards) {
-            // 3. 1번에서 만든 리스트에 추가
-            boardResponses.add(
-                    new BoardResponse(
-                            board.getId(),
-                            board.getTitle(),
-                            board.getContent(),
-                            board.getHits(),
-                            board.getLikeCount(),
-                            (userId == -1) ? false : likeRepository.existsByUserIdAndBoardId(userId, board.getId()),
-                            board.getUser().getId(),
-                            board.getUser().getNickname(),
-                            board.getCreatedDatetime(),
-                            board.getUpdatedDatetime()
-                    )
-            );
-        }
-        return boardResponses;
-
-
-    }
-
     // 상세 조회
     public BoardResponse getBoard(int id, int userId) {
         Optional<Board> optionalBoard = boardRepository.findById(id);
