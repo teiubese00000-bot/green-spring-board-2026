@@ -28,9 +28,9 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, insertable = false, updatable = false)
+    @Column(name="created_date_time", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdDatetime;
 
-    @Column(nullable = false, insertable = false, updatable = false)
+    @Column(name ="update_date_time", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedDatetime;
 }
