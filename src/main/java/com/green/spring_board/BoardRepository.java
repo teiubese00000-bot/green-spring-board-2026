@@ -9,5 +9,7 @@ import org.springframework.stereotype.Repository;
    // JpaRepository를 상속해서 기본 조회·저장·삭제 메서드를 사용 -> 보드 컨트롤러
 public interface BoardRepository extends JpaRepository<Boards,Integer> { 
 
-
+// Boards → 조회하고 저장할 엔티티 타입
+// Integer → 그 엔티티의 기본 키(@Id) 타입
+   
 }
