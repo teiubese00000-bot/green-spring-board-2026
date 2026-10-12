@@ -26,16 +26,17 @@ public class BoardController {
           Boards board = boardRepository.findById(1).get();
           return board.getTitle();
       }
-
      */
-// 외부값 읽기와 저장
+
+    
+// 외부값 읽기와 저장 -삽입
     @PostMapping
     public void createBoard(@RequestBody BoardCreateRequest boardCreateRequest) {
         System.out.println(boardCreateRequest.getTitle());
         System.out.println(boardCreateRequest.getContent());
 
 //저장
-        Boards board =new Boards();
+        Boards board = new Boards();
         board.setTitle(boardCreateRequest.getTitle());
         board.setContent(boardCreateRequest.getContent());
 
