@@ -2,8 +2,6 @@ package com.green.spring_board;
 
 import jakarta.persistence.*;
 
-import javax.swing.border.Border;
-
 @Entity
 @Table(name="boards")
 public class Boards {
@@ -20,13 +18,10 @@ public class Boards {
     public Boards(){}
 
     public Boards(int id, String title, String content){
-        this.id=id;
-        this.title=title;
-        this.content=content;
+        this.id = id;
+        this.title = title;
+        this.content = content;
     }
-
-
-
 
 
     public int getId() {
