@@ -23,24 +23,25 @@ public class UserController {
     private final UserService userService;
     private final UserRepository userRepository;
     private final BoardService boardService;
-@Operation(summary = "회원가입api")
+
+
+    @Operation(summary = "회원가입api", description = "회원가입을 할 때 씀")
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest signupRequest) {
         userService.signup(signupRequest);
         return ResponseEntity.ok(ApiResponse.ok());
     }
 
+
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Void>> login(
-            @Valid @RequestBody LoginRequest loginRequest,
-            HttpServletRequest httpServletRequest
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest loginRequest
+
     ){
-        int userId = userService.login(loginRequest);
-        HttpSession session = httpServletRequest.getSession();
-        httpServletRequest.changeSessionId();
-        session.setAttribute("userId", userId);
-        return ResponseEntity.ok(ApiResponse.ok());
+        LoginResponse result = userService.login(loginRequest);
+                return ResponseEntity.ok(ApiResponse.ok(result));
     }
+
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(

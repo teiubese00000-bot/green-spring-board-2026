@@ -2,10 +2,7 @@ package com.green.spring_board.service;
 
 import com.green.spring_board.dto.BoardResponse;
 import com.green.spring_board.exceptions.InvalidStateException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.transaction.annotation.Transactional;
 import com.green.spring_board.dto.BoardUpdateRequest;
 import com.green.spring_board.dto.LikeDetailResponse;
@@ -34,8 +31,9 @@ public class BoardService {
     private LikeRepository likeRepository;
 
     // 전체 조회: 페이지 조건과 정렬 조건으로 조회합니다.
-    @Transactional(readOnly = true)
-    public Page<BoardResponse> getAllBoards(int userId, int page, int size, String order)
+
+    public Page<BoardResponse> getAllBoards(
+            int userId, int page, int size, String order)
     {
         Sort sort;  // 정렬하기
         if (order.equals("latest")) {
@@ -51,20 +49,28 @@ public class BoardService {
         Pageable pageable = PageRequest.of(page, size, sort);
         Page<Board> boards = boardRepository.findAll(pageable);
 
+        List<BoardResponse> boardResponses = new ArrayList<>();
 
+        for (Board board : boards) {
+            // 3. 1번에서 만든 리스트에 추가
+            boardResponses.add(
+                    new BoardResponse(
+                            board.getId(),
+                            board.getTitle(),
+                            board.getContent(),
+                            board.getHits(),
+                            board.getLikeCount(),
+                            (userId == -1) ? false : likeRepository.existsByUserIdAndBoardId(userId, board.getId()),
+                            board.getUser().getId(),
+                            board.getUser().getNickname(),
+                            board.getCreatedDatetime(),
+                            board.getUpdatedDatetime()
+                    )
+            );
+        }
 
-        return boards.map(board -> new BoardResponse(
-                board.getId(),
-                board.getTitle(),
-                board.getContent(),
-                board.getHits(),
-                board.getLikeCount(),
-                userId != -1 && likeRepository.existsByUserIdAndBoardId(userId, board.getId()),
-                board.getUser() == null ? null : board.getUser().getId(),
-                board.getUser() == null ? null : board.getUser().getNickname(),
-                board.getCreatedDatetime(),
-                board.getUpdatedDatetime()
-        ));
+        return new PageImpl<>(boardResponses, pageable, boards.getTotalElements());
+
     }
     // 상세 조회
     public BoardResponse getBoard(int id, int userId) {
@@ -75,10 +81,16 @@ public class BoardService {
         }
         Board board = optionalBoard.get();
 
+        if (board.isDeleted()){
+            throw new ResourceNotFoundException("삭제된 게시글");
+        }
+
         User user = board.getUser();
         System.out.println(user.getNickname());
         board.setHits(board.getHits() + 1);
         boardRepository.save(board);
+
+
         return new BoardResponse(
                 board.getId(),
                 board.getTitle(),
@@ -94,7 +106,7 @@ public class BoardService {
     }
 
     public List<BoardResponse> getMyBoards(int userId){
-        List<Board> boards = boardRepository.findByUserId(userId);
+        List<Board> boards = boardRepository.findByUserIdAndIsDeletedFalse(userId);
 
         // 1. List<BoardResponse> 형태의 빈 리스트 생성
         List<BoardResponse> boardResponses = new ArrayList<>();

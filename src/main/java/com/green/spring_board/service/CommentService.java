@@ -28,7 +28,7 @@ public class CommentService {
 
     public void createComment(CommentCreateRequest commentCreateRequest,
                               int userId, int boardId ){
-        Optional<User> optionalUser   =userRepository.findById(userId);
+        Optional<User> optionalUser   = userRepository.findById(userId);
         Optional<Board> optionalBoard = boardRepository.findById(boardId);
         // 비었으면
         if(optionalUser.isEmpty()) {
@@ -56,9 +56,7 @@ public class CommentService {
 
       }
         List<Comment> comments = commentRepository.findByBoardIdAndIsDeletedFalse(boardId);
-
-       
-
+        // 댓글은 가져왔는데, 이걸 이제 CommentResponse 로 변환
 
         List<CommentResponse> commentResponses = new ArrayList<>();
 
@@ -75,14 +73,19 @@ public class CommentService {
         return commentResponses;
     }
 
-    public void updateComment(int id, UpdateCommentRequest updateCommentRequest, int userId){
-        Optional<Comment> optionalComment = commentRepository.findById(id);
+    public void updateComment(int commentId,  UpdateCommentRequest updateCommentRequest, int userId){
+        Optional<Comment> optionalComment = commentRepository.findById(commentId);
+
         if (optionalComment.isEmpty()){
             throw new ResourceNotFoundException(" 댓글을 찾을 수 없습니다");
 
         }
         // 댓글이 있으면 꺼낸다
         Comment comment=optionalComment.get();
+
+        if(comment.isDeleted()){
+            throw new ResourceNotFoundException("삭제된 댓글입니다");
+        }
 // 작성자 아니면 수정 막음
         if (comment.getUser().getId() != userId){
             throw new AuthorizationFailureException("권한이 없습니다");
@@ -90,13 +93,14 @@ public class CommentService {
         }
 
         // 수정
-        comment.setContent(updateCommentRequest.getContent());
-        commentRepository.save(comment);
-
+        if(updateCommentRequest.getContent() != null) {
+            comment.setContent(updateCommentRequest.getContent());
+            commentRepository.save(comment);
+        }
     }
 
-    public void deleteComment(int id, int userId){
-        Optional<Comment> optionalComment = commentRepository.findById(id);
+    public void deleteComment(int commentId, int userId){
+        Optional<Comment> optionalComment = commentRepository.findById(commentId);
         if (optionalComment.isEmpty()){
             throw new ResourceNotFoundException(" 댓글을 찾을 수 없습니다");
 

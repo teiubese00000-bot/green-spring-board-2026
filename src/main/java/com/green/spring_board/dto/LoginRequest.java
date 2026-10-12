@@ -11,8 +11,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class LoginRequest {
-    @NotBlank   // null 또는 빈문자열 방지(공백으로 이뤄진 데이테도 빈값으로 간주)
-    private String email;
+    @NotBlank   // null 또는 빈문자열 방지(공백으로 이뤄진 데이터도 빈값으로 간주)
+    private String username;
+
     @NotBlank
     private String password;
 }

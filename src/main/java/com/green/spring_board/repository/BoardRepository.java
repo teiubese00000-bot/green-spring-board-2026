@@ -10,6 +10,6 @@ import java.util.List;
 
 @Repository
 public interface BoardRepository extends JpaRepository<Board, Integer> {
-    List<Board> findByUserId(int userId);
+    List<Board> findByUserIdAndIsDeletedFalse(int userId);
     Page<Board> findByIsDeletedFalse(Pageable pageable);
 }

@@ -1,29 +1,31 @@
 package com.green.spring_board.service;
 
-import com.green.spring_board.dto.LoginRequest;
-import com.green.spring_board.dto.MyInfoResponse;
-import com.green.spring_board.dto.SignupRequest;
-import com.green.spring_board.dto.UserUpdateRequest;
+import com.green.spring_board.dto.*;
 import com.green.spring_board.entity.User;
-import com.green.spring_board.exceptions.AuthorizationFailureException;
+
 import com.green.spring_board.exceptions.ResourceConflictException;
 import com.green.spring_board.exceptions.ResourceNotFoundException;
 import com.green.spring_board.exceptions.UnauthenticatedException;
 import com.green.spring_board.global.UserState;
 import com.green.spring_board.repository.UserRepository;
+import com.green.spring_board.security.JwtTokenProvider;
 import lombok.AllArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import org.springframework.security.core.AuthenticationException;
 import java.util.Optional;
 
 @Service
 @AllArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder
-            = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtTokenProvider tokenProvider;
 
     public void signup(SignupRequest signupRequest) {
         // 이메일이 사용 중인지 확인
@@ -38,6 +40,7 @@ public class UserService {
 
         // db save
         User user = new User();
+        user.setUsername(signupRequest.getUsername());
         user.setEmail(signupRequest.getEmail());
         user.setPassword(hashedPassword);
         user.setNickname(signupRequest.getNickname());
@@ -46,29 +49,35 @@ public class UserService {
         userRepository.save(user);
     }
 
-    public int login(LoginRequest loginRequest) {
-        // 1. 이메일 존재하는건지 확인
-        Optional<User> userOptional
-                = userRepository.findByEmail(loginRequest.getEmail());
+    public LoginResponse login(LoginRequest loginRequest) {
 
-        if(userOptional.isEmpty()){
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    loginRequest.getUsername(), loginRequest.getPassword()
+            ));
+        }catch (AuthenticationException e){
+            throw new UnauthenticatedException("아이디 또는 비번이 올바르지 않음");
+
+        }
+
+        // 1. 이메일 존재하는지 확인
+        User user= userRepository.findByUsername(loginRequest.getUsername());
+
+        if(user==null){
             throw new ResourceNotFoundException("User not found");
         }
     //유저를 가져옴
-        User user = userOptional.get();
+
 
         if (user.getState()==UserState.QUITTED){
             throw new ResourceNotFoundException("탈퇴한 회원임");
 
         }
-
-        // 2. 비밀번호가 올바른지 확인
-        if(!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())){
-            throw new UnauthenticatedException("Wrong password");
-        }
+// 액세스 토큰발급
+       String  accessToken= tokenProvider.generateAccessToken(user.getUsername());
 
         // 3. 로그인 성공
-        return user.getId();
+        return new LoginResponse(accessToken);
     }
 
     public MyInfoResponse getUserInfo(int userId){
@@ -82,8 +91,6 @@ public class UserService {
             throw new ResourceNotFoundException("탈퇴한 회원임");
 
         }
-
-
 
         // 4. DB에서 이 유저의 닉네임과 이메일을 받아옴
         String email = user.getEmail();
@@ -104,6 +111,7 @@ public class UserService {
         }
         ////////////
         User user = userOptional.get();
+
         if (user.getState()==UserState.QUITTED){
             throw new ResourceNotFoundException("탈퇴한 회원임");
 
@@ -132,11 +140,6 @@ public class UserService {
         }
 
         User user = userOptional.get();
-        ///////////////
-        if (user.getState()==UserState.QUITTED){
-            throw new ResourceNotFoundException("탈퇴한 회원임");
-
-        }
 
 
         // 유저 상태변경

@@ -25,4 +25,8 @@ public class SignupRequest {
     @NotBlank
     @Size(max=30)
     private String nickname;
+
+    @NotBlank
+    @Size(max = 255)
+    private String username;
 }
