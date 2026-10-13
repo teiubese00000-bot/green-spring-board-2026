@@ -13,6 +13,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SignupRequest {
+
+    @NotBlank
+    @Size(max = 30)
+    private String username;
+
     @NotBlank
     @Email
     @Size(max=100)
@@ -26,7 +31,4 @@ public class SignupRequest {
     @Size(max=30)
     private String nickname;
 
-    @NotBlank
-    @Size(max = 255)
-    private String username;
 }

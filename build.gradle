@@ -33,6 +33,14 @@ dependencies {
 	implementation 'org.springframework.security:spring-security-crypto'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+	// JWT 토큰을 생성하고 검증하기 위해 필요한 라이브러리를 추가
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	//스프링 시큐리티
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
 	// Swagger
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
 }

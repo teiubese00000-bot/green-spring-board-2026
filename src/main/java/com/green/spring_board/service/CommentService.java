@@ -2,7 +2,6 @@ package com.green.spring_board.service;
 
 import com.green.spring_board.dto.CommentCreateRequest;
 import com.green.spring_board.dto.CommentResponse;
-import com.green.spring_board.dto.UpdateCommentRequest;
 import com.green.spring_board.entity.Board;
 import com.green.spring_board.entity.Comment;
 import com.green.spring_board.entity.User;
@@ -11,55 +10,51 @@ import com.green.spring_board.exceptions.ResourceNotFoundException;
 import com.green.spring_board.repository.BoardRepository;
 import com.green.spring_board.repository.CommentRepository;
 import com.green.spring_board.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@Service  // 서비스 클래스로 등록
-@RequiredArgsConstructor // final 필드 생성자 자동 생성
+@Service
+@AllArgsConstructor
 public class CommentService {
-
     private final CommentRepository commentRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
 
-    public void createComment(CommentCreateRequest commentCreateRequest,
-                              int userId, int boardId ){
-        Optional<User> optionalUser   = userRepository.findById(userId);
-        Optional<Board> optionalBoard = boardRepository.findById(boardId);
-        // 비었으면
-        if(optionalUser.isEmpty()) {
-            throw new ResourceNotFoundException("사용자를 찾을 수 없습니다.");
+    public void createComment(
+            CommentCreateRequest commentCreateRequest,
+            int boardId
+    ) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
+        Optional<Board> boardOptional = boardRepository.findById(boardId);
+
+        if (boardOptional.isEmpty()) {
+            throw new ResourceNotFoundException("Board not found");
         }
-        if(optionalBoard.isEmpty()) {
-            throw new ResourceNotFoundException("글을 찾을수 없음");
-        }
-      // 글이 있으면 꺼내온다
-        Board board = optionalBoard.get();
-        User user = optionalUser.get();
+
+        Board board = boardOptional.get();
 
         Comment comment = new Comment();
         comment.setContent(commentCreateRequest.getContent());
         comment.setUser(user);
         comment.setBoard(board);
-
         commentRepository.save(comment);
-
-
     }
-    public List<CommentResponse> readComments(int boardId) {
-      if (!boardRepository.existsById(boardId)){
-          throw new ResourceNotFoundException("board not found");
 
-      }
+    public List<CommentResponse> readComments(int boardId){
+        if(!boardRepository.existsById(boardId)){
+            throw new ResourceNotFoundException("Board not found");
+        }
+
         List<Comment> comments = commentRepository.findByBoardIdAndIsDeletedFalse(boardId);
         // 댓글은 가져왔는데, 이걸 이제 CommentResponse 로 변환
 
         List<CommentResponse> commentResponses = new ArrayList<>();
-
         for (Comment comment : comments) {
             CommentResponse commentResponse = new CommentResponse();
             commentResponse.setCommentId(comment.getId());
@@ -73,54 +68,47 @@ public class CommentService {
         return commentResponses;
     }
 
-    public void updateComment(int commentId,  UpdateCommentRequest updateCommentRequest, int userId){
-        Optional<Comment> optionalComment = commentRepository.findById(commentId);
+    public void deleteComment(int commentId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
 
-        if (optionalComment.isEmpty()){
-            throw new ResourceNotFoundException(" 댓글을 찾을 수 없습니다");
-
+        Optional<Comment> commentOptional = commentRepository.findById(commentId);
+        if (commentOptional.isEmpty()) {
+            throw new ResourceNotFoundException("Comment not found");
         }
-        // 댓글이 있으면 꺼낸다
-        Comment comment=optionalComment.get();
+        Comment comment = commentOptional.get();
+
+        if(comment.getUser().getId() != user.getId()){
+            throw new AuthorizationFailureException("삭제할 권한이 없습니다.");
+        }
+
+        comment.setDeleted(true);
+        commentRepository.save(comment);
+    }
+
+    public void updateComment(
+            CommentCreateRequest commentCreateRequest,
+            int commentId
+    ) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
+        Optional<Comment> commentOptional = commentRepository.findById(commentId);
+        if (commentOptional.isEmpty()) {
+            throw new ResourceNotFoundException("Comment not found");
+        }
+        Comment comment = commentOptional.get();
 
         if(comment.isDeleted()){
             throw new ResourceNotFoundException("삭제된 댓글입니다");
         }
-// 작성자 아니면 수정 막음
-        if (comment.getUser().getId() != userId){
-            throw new AuthorizationFailureException("권한이 없습니다");
 
+        if(comment.getUser().getId() != user.getId()){
+            throw new AuthorizationFailureException("수정할 권한이 없습니다.");
         }
 
-        // 수정
-        if(updateCommentRequest.getContent() != null) {
-            comment.setContent(updateCommentRequest.getContent());
+        if(commentCreateRequest.getContent() != null){
+            comment.setContent(commentCreateRequest.getContent());
             commentRepository.save(comment);
         }
     }
-
-    public void deleteComment(int commentId, int userId){
-        Optional<Comment> optionalComment = commentRepository.findById(commentId);
-        if (optionalComment.isEmpty()){
-            throw new ResourceNotFoundException(" 댓글을 찾을 수 없습니다");
-
-        }
-        // 댓글이 있으면 꺼낸다
-        Comment comment=optionalComment.get();
-
-        if (comment.getUser().getId() != userId){
-            throw new AuthorizationFailureException("권한이 없습니다");
-
-        }
-        // 논리삭제
-        comment.setDeleted(true);
-        commentRepository.save(comment);
-
-        // 물리삭제 commentRepository.deleteById(id);
-
-
-    }
-
-
 }
-

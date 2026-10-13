@@ -2,22 +2,27 @@ package com.green.spring_board.service;
 
 import com.green.spring_board.dto.*;
 import com.green.spring_board.entity.User;
-
 import com.green.spring_board.exceptions.ResourceConflictException;
 import com.green.spring_board.exceptions.ResourceNotFoundException;
 import com.green.spring_board.exceptions.UnauthenticatedException;
 import com.green.spring_board.global.UserState;
+import com.green.spring_board.repository.RefreshTokenRepository;
 import com.green.spring_board.repository.UserRepository;
 import com.green.spring_board.security.JwtTokenProvider;
+import com.green.spring_board.security.RefreshToken;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import org.springframework.security.core.AuthenticationException;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.List;
 
 @Service
 @AllArgsConstructor
@@ -26,17 +31,21 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public void signup(SignupRequest signupRequest) {
+        // 아이디가 사용 중인지 확인
+        if( userRepository.existsByUsername(signupRequest.getUsername()) ){
+            throw new ResourceConflictException("Username already exists");
+        }
+
         // 이메일이 사용 중인지 확인
         if( userRepository.existsByEmail(signupRequest.getEmail()) ){
             throw new ResourceConflictException("Email already exists");
         }
 
         // 비밀번호 해싱
-        String hashedPassword = passwordEncoder.encode(
-                signupRequest.getPassword()
-        );
+        String hashedPassword = passwordEncoder.encode(signupRequest.getPassword());
 
         // db save
         User user = new User();
@@ -44,53 +53,63 @@ public class UserService {
         user.setEmail(signupRequest.getEmail());
         user.setPassword(hashedPassword);
         user.setNickname(signupRequest.getNickname());
-        /////
         user.setState(UserState.ACTIVE);
         userRepository.save(user);
     }
 
+   // @Transactional  // 메서드 안의 DB 작업을 하나의 묶음으로 처리하는 설정
     public LoginResponse login(LoginRequest loginRequest) {
-
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                     loginRequest.getUsername(), loginRequest.getPassword()
             ));
-        }catch (AuthenticationException e){
-            throw new UnauthenticatedException("아이디 또는 비번이 올바르지 않음");
-
+        } catch (AuthenticationException e) {
+            throw new UnauthenticatedException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
+        // 1. 이메일 존재하는건지 확인
+        User user = userRepository.findByUsername(loginRequest.getUsername());
 
-        // 1. 이메일 존재하는지 확인
-        User user= userRepository.findByUsername(loginRequest.getUsername());
-
-        if(user==null){
+        if(user == null){
             throw new ResourceNotFoundException("User not found");
         }
-    //유저를 가져옴
 
-
-        if (user.getState()==UserState.QUITTED){
-            throw new ResourceNotFoundException("탈퇴한 회원임");
-
+        if(user.getState() == UserState.QUITTED){
+            throw new ResourceNotFoundException("탈퇴된 회원입니다.");
         }
-// 액세스 토큰발급
-       String  accessToken= tokenProvider.generateAccessToken(user.getUsername());
+
+        // 액세스 토큰 발급
+        String accessToken = tokenProvider.generateAccessToken(user.getUsername());
+        // 리프레시 토큰 발급
+        String refreshToken = tokenProvider.generateRefreshAccessToken(user.getUsername());
+
+
+        // Transactional 으로 사용 가능하지만 임시우회
+        List<RefreshToken> tokens= refreshTokenRepository.findByUserId(user.getId());
+        // 해당 유저의 기존 리프레시 토큰 제거
+        // 1. 해당 유저의 기존 리프레시 토큰 삭제
+        refreshTokenRepository.deleteByUserId(user.getId());
+
+
+        // 2. 해당유저의 신규 리프레시 토큰 저장
+        Date expiration = tokenProvider.getExpiration(refreshToken);
+        LocalDateTime expirationDateTime =expiration.toInstant().atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+
+        RefreshToken refresh = new RefreshToken();
+        refresh.setUser(user);
+        refresh.setToken(refreshToken);
+        refresh.setExpirationDateTime(expirationDateTime);
+
+        refreshTokenRepository.save(refresh);
+
 
         // 3. 로그인 성공
-        return new LoginResponse(accessToken);
+        return new LoginResponse(accessToken, refreshToken);
     }
 
-    public MyInfoResponse getUserInfo(int userId){
-        Optional<User> userOptional = userRepository.findById(userId);
-        if(userOptional.isEmpty()) {
-            throw new ResourceNotFoundException("User not found");
-        }
-        User user = userOptional.get();
-///////
-        if (user.getState()==UserState.QUITTED){
-            throw new ResourceNotFoundException("탈퇴한 회원임");
-
-        }
+    public MyInfoResponse getUserInfo(){
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
 
         // 4. DB에서 이 유저의 닉네임과 이메일을 받아옴
         String email = user.getEmail();
@@ -104,19 +123,9 @@ public class UserService {
         return myInfoResponse;
     }
 
-    public void updateUserInfo(int userId, UserUpdateRequest userUpdateRequest) {
-        Optional<User> userOptional = userRepository.findById(userId);
-        if(userOptional.isEmpty()){
-            throw new ResourceNotFoundException("User not found");
-        }
-        ////////////
-        User user = userOptional.get();
-
-        if (user.getState()==UserState.QUITTED){
-            throw new ResourceNotFoundException("탈퇴한 회원임");
-
-        }
-
+    public void updateUserInfo(UserUpdateRequest userUpdateRequest) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
 
         if(userUpdateRequest.getEmail()!=null
                 && !userUpdateRequest.getEmail().isBlank()
@@ -133,19 +142,11 @@ public class UserService {
         userRepository.save(user);
     }
 
-    public void deleteUser(int userId){
-        Optional<User> userOptional = userRepository.findById(userId);
-        if(userOptional.isEmpty()){
-            throw new ResourceNotFoundException("User not found");
-        }
-
-        User user = userOptional.get();
-
-
-        // 유저 상태변경
+    public void deleteUser(){
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
         user.setState(UserState.QUITTED);
         userRepository.save(user);
-
-      //  userRepository.delete(user);
+        // TODO :: 리프레시 토큰 삭제
     }
 }
