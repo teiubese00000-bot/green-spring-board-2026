@@ -4,6 +4,7 @@ import com.green.spring_board.dto.*;
 import com.green.spring_board.service.BoardService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -98,4 +99,14 @@ public class BoardController {
         LikeDetailResponse response = boardService.getLikeDetail(id);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<BoardResponse>>> searchPosts(
+            @RequestParam String keyword
+    ){
+        List<BoardResponse> responses =boardService.search(keyword);
+        return ResponseEntity.ok(ApiResponse.ok(responses));
+
+    }
+
+
 }

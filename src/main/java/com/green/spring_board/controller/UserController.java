@@ -23,10 +23,13 @@ public class UserController {
 
     @Operation(summary = "회원가입 API", description = "회원가입을 할 때 씀")
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequest signupRequest) {
+    public ResponseEntity<ApiResponse<Void>> signup
+            (@Valid @RequestBody SignupRequest signupRequest)
+    {
         userService.signup(signupRequest);
         return ResponseEntity.ok(ApiResponse.ok());
     }
+
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(
@@ -36,10 +39,30 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
+
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(){
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestHeader("Authorization") String authorization
+    ){
+        String  accessToken = authorization.substring(7);
+        userService.logout(accessToken);
         return ResponseEntity.ok(ApiResponse.ok());
+
     }
+
+
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<RefreshResponse>> refresh
+            (@Valid @RequestBody RefreshRequest refreshRequest)
+    {
+        //리프레시 토큰을 이용해 새로운 액세스 토큰 재발급
+
+        RefreshResponse response = userService.refresh(refreshRequest);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+
+    }
+
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MyInfoResponse>> getCurrentUser(
@@ -48,6 +71,12 @@ public class UserController {
 
         return ResponseEntity.ok().body(ApiResponse.ok(response));
     }
+
+
+
+
+
+
 
     @PatchMapping
     public ResponseEntity<ApiResponse<Void>> updateUserInfo(

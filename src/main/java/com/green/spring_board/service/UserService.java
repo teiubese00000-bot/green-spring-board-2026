@@ -1,16 +1,19 @@
 package com.green.spring_board.service;
 
 import com.green.spring_board.dto.*;
+import com.green.spring_board.entity.AccessTokenBlacklist;
 import com.green.spring_board.entity.User;
 import com.green.spring_board.exceptions.ResourceConflictException;
 import com.green.spring_board.exceptions.ResourceNotFoundException;
 import com.green.spring_board.exceptions.UnauthenticatedException;
 import com.green.spring_board.global.UserState;
+import com.green.spring_board.repository.AccessTokenBlacklistRepository;
 import com.green.spring_board.repository.RefreshTokenRepository;
 import com.green.spring_board.repository.UserRepository;
 import com.green.spring_board.security.JwtTokenProvider;
 import com.green.spring_board.security.RefreshToken;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -19,10 +22,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.sql.Ref;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -32,7 +37,10 @@ public class UserService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AccessTokenBlacklistRepository accessTokenBlacklistRepository;
 
+
+    @Transactional
     public void signup(SignupRequest signupRequest) {
         // 아이디가 사용 중인지 확인
         if( userRepository.existsByUsername(signupRequest.getUsername()) ){
@@ -57,7 +65,9 @@ public class UserService {
         userRepository.save(user);
     }
 
-   // @Transactional  // 메서드 안의 DB 작업을 하나의 묶음으로 처리하는 설정
+
+
+    @Transactional  // 메서드 안의 DB 작업을 하나의 묶음으로 처리하는 설정
     public LoginResponse login(LoginRequest loginRequest) {
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
@@ -84,7 +94,7 @@ public class UserService {
 
 
         // Transactional 으로 사용 가능하지만 임시우회
-        List<RefreshToken> tokens= refreshTokenRepository.findByUserId(user.getId());
+        // List<RefreshToken> tokens= refreshTokenRepository.findByUserId(user.getId());
         // 해당 유저의 기존 리프레시 토큰 제거
         // 1. 해당 유저의 기존 리프레시 토큰 삭제
         refreshTokenRepository.deleteByUserId(user.getId());
@@ -107,6 +117,93 @@ public class UserService {
         return new LoginResponse(accessToken, refreshToken);
     }
 
+
+    @Transactional
+    public void logout(String accessToken) {
+        // 1. 해당 사용자의 리프레시 토큰 무효화
+        // DB에서 해당 사용자의 리프레시 토큰을 지운다
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        User user = userRepository.findByUsername(username);
+        List<RefreshToken> tokens = refreshTokenRepository.findByUserId(user.getId());
+        refreshTokenRepository.deleteAll(tokens);
+
+        // 2. 해당 사용자의 액세스 토큰 무효화
+        // DB 내 블랙리스트 테이블에 해당 토큰 추가
+        // 만료후에는 블랙리스트 해제 필요하므로 만료일자도 함께 넣는다
+
+        // 로그아웃한 액세스 토큰을 블랙리스트에 등록하기 위해 만료 시간 조회
+        Date expiration = tokenProvider.getExpiration(accessToken);
+
+        // DB 엔티티의 날짜 타입인 LocalDateTime으로 변환
+        LocalDateTime convertedDateTime = expiration.toInstant().
+                atZone(ZoneId.systemDefault()).toLocalDateTime();
+
+
+        // 로그아웃한 토큰을 실제로 블랙리스트에 저장
+        // 블랙리스트에 저장할 객체 생성
+        AccessTokenBlacklist accessTokenBlacklist = new AccessTokenBlacklist();
+
+        // 더 이상 사용하지 못하게 할 액세스 토큰 설정
+        accessTokenBlacklist.setToken(accessToken);
+        // 나중에 기록을 정리할 수 있도록 토큰 만료 시간 설정
+        accessTokenBlacklist.setExpirationDateTime(convertedDateTime);
+        // 토큰과 만료 시간을 DB 블랙리스트 테이블에 저장
+        accessTokenBlacklistRepository.save(accessTokenBlacklist);
+    }
+
+
+
+
+
+
+
+@Transactional(readOnly = true)
+    public RefreshResponse refresh(@Valid RefreshRequest refreshRequest){
+        String userRefreshToken = refreshRequest.getRefreshToken();
+        // 1.리프래시 토큰 위변조 여부
+
+        if (!tokenProvider.validateRefreshToken(userRefreshToken)){
+
+            throw new UnauthenticatedException("만료되었거나 유효하지 않은 리프레시 토큰");
+        }
+
+        // 2. DB내 존재하는 리프래시 토큰인지 검증
+        Optional<RefreshToken> optionalRT =refreshTokenRepository.findByToken(userRefreshToken);
+        if (optionalRT.isEmpty()){
+            throw new UnauthenticatedException("유효하지 않은 리프레시 토큰");
+
+        }
+        // 3. 해당 리프래시 토큰이 만료되진 않았는지 검증
+        // ! + isAfter = 만료시간이 현재보다 이전이거나 같은 경우
+        // isBefore = 만료 시간이 현재보다 이전인 경우
+        // 만료 시각과 현재 시각이 정확히 같을 때도 만료된 것으로 처리
+        if (!optionalRT.get().getExpirationDateTime().isAfter(LocalDateTime.now())){
+            throw new UnauthenticatedException("만료되지 않은 리프레시 토큰");
+
+        }
+        // 4. 토큰 내 유저네임(subject)의 정보가 유효한지 검증
+        // 해당 유저가 존재하는지, 활성화 상태인지(탈퇴는 아닌지) 등등
+        String username= tokenProvider.getUsernameFromToken(userRefreshToken);
+        User user = userRepository.findByUsername(username);
+        if (user ==null || user.getState() != UserState.ACTIVE){
+            throw new UnauthenticatedException("인증할 수 없는 계정");
+
+        }
+        // 5. 최종 새 액세스 토큰 발급
+        String accessToken = tokenProvider.generateAccessToken(username);
+        return  new RefreshResponse(accessToken);
+
+
+    }
+
+
+
+
+
+
+@Transactional(readOnly = true)
     public MyInfoResponse getUserInfo(){
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username);
@@ -123,6 +220,9 @@ public class UserService {
         return myInfoResponse;
     }
 
+
+
+@Transactional
     public void updateUserInfo(UserUpdateRequest userUpdateRequest) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username);
@@ -142,6 +242,8 @@ public class UserService {
         userRepository.save(user);
     }
 
+
+@Transactional
     public void deleteUser(){
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username);

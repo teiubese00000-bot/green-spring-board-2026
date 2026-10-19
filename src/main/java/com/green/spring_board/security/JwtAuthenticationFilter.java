@@ -1,12 +1,16 @@
 package com.green.spring_board.security;
 
+import com.green.spring_board.entity.AccessTokenBlacklist;
+import com.green.spring_board.repository.AccessTokenBlacklistRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import lombok.val;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -15,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Component
 @AllArgsConstructor
@@ -23,6 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider tokenProvider;
     private  final UserDetailsService userDetailsService;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
+    private final AccessTokenBlacklistRepository accessTokenBlacklistRepository;
 
 
     @Override
@@ -38,6 +44,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (tokenProvider.validateAccessToken(token)){
                 //TODO 블랙리스트 여부확인
+                Optional<AccessTokenBlacklist> optionalATB =
+                        accessTokenBlacklistRepository.findByToken(token);
+                if (optionalATB.isPresent()){
+                    authenticationEntryPoint.commence(
+                            request,
+                            response,
+                            new BadCredentialsException("무효화된 액세스 토큰")
+                    );
+                    return;
+                }
+
                 String username = tokenProvider.getUsernameFromToken(token);
                 UserDetails userDetails;
 
